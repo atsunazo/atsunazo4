@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>日本語クイズアプリ</title>
-   
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
     <div id="root"></div>
@@ -53,8 +56,8 @@
                 ["ま", "み", "む", "め", "も"],
                 ["や", "", "ゆ", "", "よ"],
                 ["ら", "り", "る", "れ", "ろ"],
-                ["わ", "", "を", "", "ん"],
-                ["ー", "゛", "゜", "小", "×"]
+                ["わ", "", "", "", "を"],
+                ["ん", "゛", "゜", "小", "×"]
             ];
 
             const dakutenMap = {
