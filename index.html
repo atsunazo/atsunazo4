@@ -2,49 +2,73 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日本語クイズアプリ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no",interactive-widget=resizes-content>
+    <title>謎解き3</title>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        #title-image {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 15px;
+            margin-top: 30px
+        }
+        #quiz-screen, #finish-screen {
+            display: none;
+        }
+        .correct {
+            color: green;
+        }
+        .incorrect {
+            color: red;
+        }
+        .rank {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        #question-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+        }
+        .time-warning {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
         function MainComponent() {
-            const [answer, setAnswer] = React.useState("");
-            const [currentQuestionId, setCurrentQuestionId] = React.useState(1);
-            const [error, setError] = React.useState("");
-            const [isSubmitting, setIsSubmitting] = React.useState(false);
+            const [gameState, setGameState] = React.useState('start');
+            const [playerName, setPlayerName] = React.useState('');
+            const [currentQuestion, setCurrentQuestion] = React.useState(0);
+            const [answers, setAnswers] = React.useState([]);
+            const [solvedQuestions, setSolvedQuestions] = React.useState(new Set());
+            const [remainingTime, setRemainingTime] = React.useState(40);
+            const [resultMessage, setResultMessage] = React.useState('');
 
-            // サンプルの問題データをハードコード
+            const QUESTION_TIME_LIMIT = 40;
+
             const questions = [
-                {
-                    id: 1,
-                    question_image: "./images/question1.jpg", // 同じ階層のimagesフォルダから読み込む
-                    correct_answer: "ひらけごま",
-                },
-                {
-                    id: 2,
-                    question_image: "./images/question2.jpg",
-                    correct_answer: "たろう",
-                },
-                {
-                    id: 3,
-                    question_image: "./images/question3.jpg",
-                    correct_answer: "はなこ",
-                }
+                { image: './1.png', answer: ['れい', 'レイ','零','礼'] },
+                { image: './2.png', answer: ['いちみ', 'イチミ','一味'] },
+                { image: './3.png', answer: ['にばしゃ', 'ニバシャ','荷馬車'] },
+                { image: './4.png', answer: ['サングラス', 'さんぐらす'] },
+                { image: './5.png', answer: ['しるくはっと', 'シルクハット'] },
+                { image: './6.png', answer: ['ゴールキーパー', 'ごーるきーぱー'] },
+                { image: './7.png', answer: ['ろくはらたんだい', 'ロクハラタンダイ','六波羅探題'] },
             ];
-
-            // ローカルストレージを使って正解した問題を記録
-            const [answeredQuestions, setAnsweredQuestions] = React.useState(() => {
-                const saved = localStorage.getItem('answeredQuestions');
-                return saved ? JSON.parse(saved) : {};
-            });
-
-            const currentQuestion = questions.find(q => q.id === currentQuestionId) || questions[0];
-            const isAnswered = answeredQuestions[currentQuestionId];
 
             const hiraganaGrid = [
                 ["あ", "い", "う", "え", "お"],
@@ -86,127 +110,112 @@
             };
 
             const handleCharacterClick = (char) => {
-                if (isAnswered) return;
-
                 if (char === "×") {
-                    setAnswer(prev => prev.slice(0, -1));
+                    setAnswers(prev => [...prev.slice(0, -1)]);
                     return;
                 }
 
                 if (char === "゛" || char === "゜" || char === "小") {
-                    const lastChar = answer.slice(-1);
+                    const lastChar = answers[answers.length - 1];
                     if (char === "゛" && dakutenMap[lastChar]) {
-                        setAnswer(prev => prev.slice(0, -1) + dakutenMap[lastChar]);
+                        setAnswers(prev => [...prev.slice(0, -1), dakutenMap[lastChar]]);
                     } else if (char === "゜" && handakutenMap[lastChar]) {
-                        setAnswer(prev => prev.slice(0, -1) + handakutenMap[lastChar]);
+                        setAnswers(prev => [...prev.slice(0, -1), handakutenMap[lastChar]]);
                     } else if (char === "小" && smallMap[lastChar]) {
-                        setAnswer(prev => prev.slice(0, -1) + smallMap[lastChar]);
+                        setAnswers(prev => [...prev.slice(0, -1), smallMap[lastChar]]);
                     }
                     return;
                 }
 
                 if (char !== "") {
-                    setAnswer(prev => prev + char);
+                    setAnswers(prev => [...prev, char]);
                 }
             };
 
             const handleSubmit = () => {
-                if (isSubmitting) return;
-                
-                if (isAnswered) {
-                    // 次の問題が存在する場合のみ進む
-                    if (currentQuestionId < questions.length) {
-                        setCurrentQuestionId(currentQuestionId + 1);
-                        setAnswer("");
-                    }
-                    return;
-                }
-
-                setIsSubmitting(true);
-                
-                // 回答チェック
-                const isCorrect = answer === currentQuestion.correct_answer;
-                
-                if (isCorrect) {
-                    // 正解を記録
-                    const newAnsweredQuestions = {
-                        ...answeredQuestions,
-                        [currentQuestionId]: answer
-                    };
-                    setAnsweredQuestions(newAnsweredQuestions);
-                    localStorage.setItem('answeredQuestions', JSON.stringify(newAnsweredQuestions));
-                    
-                    // 次の問題があれば進む
-                    if (currentQuestionId < questions.length) {
-                        setCurrentQuestionId(currentQuestionId + 1);
-                        setAnswer("");
-                        setError("");
-                    }
+                const userAnswer = answers.join('');
+                if (questions[currentQuestion].answer.includes(userAnswer)) {
+                    setSolvedQuestions(prev => new Set(prev).add(currentQuestion));
+                    setResultMessage('せいかい');
+                    setTimeout(() => {
+                        if (currentQuestion < questions.length - 1) {
+                            setCurrentQuestion(currentQuestion + 1);
+                            setAnswers([]);
+                            setResultMessage('');
+                            setRemainingTime(QUESTION_TIME_LIMIT);
+                        } else {
+                            setGameState('finish');
+                        }
+                    }, 1000);
                 } else {
-                    setError("不正解です");
+                    setResultMessage('ちがうよ');
                 }
-                
-                setIsSubmitting(false);
             };
 
-            return (
-                <div className="min-h-screen bg-white dark:bg-gray-900 p-4 flex flex-col items-center">
-                    <div className="w-full max-w-[390px]">
-                        <div className="w-full mb-6 flex items-center justify-center">
-                            <img
-                                src={currentQuestion.question_image}
-                                alt="問題画像"
-                                className="w-full object-contain"
-                                loading="eager"
-                            />
-                        </div>
-                        <div className="mb-2 flex gap-2">
-                            <input
-                                type="text"
-                                value={isAnswered ? answeredQuestions[currentQuestionId] : answer}
-                                onChange={(e) => !isAnswered && setAnswer(e.target.value)}
-                                className={`w-1/2 p-2 border rounded-lg font-inter ${
-                                    isAnswered || isSubmitting
-                                        ? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-not-allowed"
-                                        : "border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
-                                }`}
-                                placeholder="解答を入力"
-                                readOnly={isAnswered || isSubmitting}
-                            />
-                            <div className="flex gap-2 w-1/2">
-                                <button
-                                    onClick={handleSubmit}
-                                    disabled={isSubmitting}
-                                    className={`flex-1 px-2 py-2 rounded-lg font-inter transition-colors ${
-                                        isSubmitting
-                                            ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600"
-                                            : isAnswered
-                                            ? "bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:text-green-400 dark:border-green-800"
-                                            : "bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
-                                    }`}
-                                >
-                                    {isAnswered ? "次へ" : isSubmitting ? "送信中..." : "送信"}
-                                </button>
-                                <button
-                                    onClick={() => currentQuestionId > 1 && setCurrentQuestionId(prev => prev - 1)}
-                                    disabled={isSubmitting || currentQuestionId <= 1}
-                                    className={`flex-1 px-2 py-2 rounded-lg font-inter transition-colors ${
-                                        isSubmitting || currentQuestionId <= 1
-                                            ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600"
-                                            : "bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-400 dark:border-gray-700"
-                                    }`}
-                                >
-                                    戻る
-                                </button>
-                            </div>
-                        </div>
+            React.useEffect(() => {
+                if (gameState === 'quiz') {
+                    const timer = setInterval(() => {
+                        setRemainingTime(prev => {
+                            if (prev <= 1) {
+                                clearInterval(timer);
+                                if (currentQuestion < questions.length - 1) {
+                                    setCurrentQuestion(currentQuestion + 1);
+                                    setAnswers([]);
+                                    setResultMessage('');
+                                    return QUESTION_TIME_LIMIT;
+                                } else {
+                                    setGameState('finish');
+                                    return 0;
+                                }
+                            }
+                            return prev - 1;
+                        });
+                    }, 1000);
+                    return () => clearInterval(timer);
+                }
+            }, [gameState, currentQuestion]);
 
-                        <div className="h-4 mt-1 mb-1 flex items-center justify-center">
-                            <div className={`text-sm w-full text-center transition-opacity text-red-600 dark:text-red-400 ${error ? 'opacity-100' : 'opacity-0'}`}>
-                                {error || '　'}
-                            </div>
-                        </div>
+            const startQuiz = () => {
+                setGameState('quiz');
+                setRemainingTime(QUESTION_TIME_LIMIT);
+            };
 
+            const getRank = (solvedCount) => {
+                const percentage = (solvedCount / questions.length) * 100;
+                if (percentage >= 100) return 'SS';
+                if (percentage >= 80) return 'S';
+                if (percentage >= 60) return 'A';
+                if (percentage >= 40) return 'B';
+                return 'C';
+            };
+
+            if (gameState === 'start') {
+                return (
+                    <div className="min-h-screen bg-white dark:bg-gray-900 p-4 flex flex-col items-center">
+                        <h1 className="text-2xl font-bold mb-4">なないろレインボー</h1>
+                        <img id="title-image" src="./0.png" alt="タイトル画像" className="mb-4" />
+                        <input
+                            type="text"
+                            value={playerName}
+                            onChange={(e) => setPlayerName(e.target.value)}
+                            placeholder="名前を入力してください"
+                            className="mb-4 p-2 border rounded"
+                        />
+                        <button onClick={startQuiz} className="bg-blue-500 text-white p-2 rounded">開始</button>
+                    </div>
+                );
+            }
+
+            if (gameState === 'quiz') {
+                return (
+                    <div className="min-h-screen bg-white dark:bg-gray-900 p-4 flex flex-col items-center">
+                        <img src={questions[currentQuestion].image} alt="問題画像" className="mb-4 max-w-full" />
+                        <div className="mb-4">{answers.join('')}</div>
+                        <div className="mb-4">
+                            <button onClick={handleSubmit} className="bg-green-500 text-white p-2 rounded mr-2">判定</button>
+                            <span className={`ml-2 ${remainingTime <= 10 ? 'text-red-500' : ''}`}>残り時間: {remainingTime}秒</span>
+                        </div>
+                        <div className={`mb-4 ${resultMessage === 'せいかい' ? 'text-green-500' : 'text-red-500'}`}>{resultMessage}</div>
                         <div className="w-full flex justify-center">
                             <div className="w-full flex justify-end">
                                 <div className="flex flex-row-reverse gap-[3px]" style={{ width: 'calc(100% - 1px)' }}>
@@ -216,12 +225,9 @@
                                                 <button
                                                     key={char}
                                                     onClick={() => handleCharacterClick(char)}
-                                                    disabled={isAnswered || isSubmitting}
                                                     className={`w-full aspect-square text-sm rounded-md border font-inter ${
                                                         char === ""
                                                             ? "invisible"
-                                                            : (isAnswered || isSubmitting)
-                                                            ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600 border-gray-200 dark:border-gray-700"
                                                             : char === "×"
                                                             ? "bg-red-50 hover:bg-red-100 text-red-600 border-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 dark:border-red-800"
                                                             : ["゛", "゜", "小"].includes(char)
@@ -238,8 +244,20 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            );
+                );
+            }
+
+            if (gameState === 'finish') {
+                const solvedCount = solvedQuestions.size;
+                return (
+                    <div className="min-h-screen bg-white dark:bg-gray-900 p-4 flex flex-col items-center">
+                        <h2 className="text-2xl font-bold mb-4">終了</h2>
+                        <p>名前: {playerName || 'ななし'}</p>
+                        <p>正解数: {solvedCount}/{questions.length}</p>
+                        <p className="text-2xl font-bold">ランク: {getRank(solvedCount)}</p>
+                    </div>
+                );
+            }
         }
 
         ReactDOM.render(<MainComponent />, document.getElementById('root'));
