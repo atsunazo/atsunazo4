@@ -2,152 +2,203 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日本語クイズアプリ</title>
-    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no",interactive-widget=resizes-content>
+    <title>謎解き3</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+         #title-image {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 15px;
+            margin-top: 30px
+        }
+
+        #quiz-screen, #finish-screen {
+            display: none;
+        }
+        .correct {
+            color: green;
+        }
+        .incorrect {
+            color: red;
+        }
+        .rank {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        #question-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+        }
+        .time-warning {
+            color: red;
+            font-weight: bold;
+        }
+
+    </style>
 </head>
 <body>
-    <div id="root"></div>
-    <script type="text/babel">
-        function MainComponent() {
-    const [answer, setAnswer] = React.useState("");
-    const [currentQuestionId, setCurrentQuestionId] = React.useState(1);
-    const [error, setError] = React.useState("");
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    <div id="start-screen">
+        <h1>なないろレインボー</h1>
+        <img id="title-image" src="./0.png" alt="タイトル画像">
+        <input type="text" id="player-name" placeholder="名前を入力してください">
+        <button id="start-btn">開始</button>
+    </div>
 
-    const questions = [
-        {
-            id: 1,
-            question_image: "./images/question1.jpg",
-            correct_answer: "ひらけごま",
-        },
-        {
-            id: 2,
-            question_image: "./images/question2.jpg",
-            correct_answer: "たろう",
-        },
-        {
-            id: 3,
-            question_image: "./images/question3.jpg",
-            correct_answer: "はなこ",
-        }
-    ];
+    <div id="quiz-screen">
+        <img id="question-image" src="" alt="問題画像">
+        <input type="text" id="answer-input">
+        <button id="submit-btn">判定</button>
+        <p id="result-message"></p>
+        <p id="timer"></p>
+    </div>
 
-    const [answeredQuestions, setAnsweredQuestions] = React.useState(() => {
-        const saved = localStorage.getItem('answeredQuestions');
-        return saved ? JSON.parse(saved) : {};
-    });
+    <div id="finish-screen">
+        <h2>終了</h2>
+        <div id="finish-result"></div>
+    </div>
 
-    const currentQuestion = questions.find(q => q.id === currentQuestionId) || questions[0];
-    const isAnswered = answeredQuestions[currentQuestionId];
+    <script>
+        const QUESTION_TIME_LIMIT = 40; // 各問題の制限時間（秒）
 
-    const hiraganaGrid = [
-        ["あ", "い", "う", "え", "お"],
-        ["か", "き", "く", "け", "こ"],
-        ["さ", "し", "す", "せ", "そ"],
-        ["た", "ち", "つ", "て", "と"],
-        ["な", "に", "ぬ", "ね", "の"],
-        ["は", "ひ", "ふ", "へ", "ほ"],
-        ["ま", "み", "む", "め", "も"],
-        ["や", "", "ゆ", "", "よ"],
-        ["ら", "り", "る", "れ", "ろ"],
-        ["わ", "", "を", "", "ん"],
-        ["ー", "゛", "゜", "小", "×"]
-    ];
+        const questions = [
+            { image: './1.png', answer: ['れい', 'レイ','零','礼'] },
+            { image: './2.png', answer: ['いちみ', 'イチミ','一味'] },
+            { image: './3.png', answer: ['にばしゃ', 'ニバシャ','荷馬車'] },
+            { image: './4.png', answer: ['サングラス', 'さんぐらす'] },
+            { image: './5.png', answer: ['しるくはっと', 'シルクハット'] },
+            { image: './6.png', answer: ['ゴールキーパー', 'ごーるきーぱー'] },
+            { image: './7.png', answer: ['ろくはらたんだい', 'ロクハラタンダイ','六波羅探題'] },
+        ];
 
-    const dakutenMap = {
-        か: "が", き: "ぎ", く: "ぐ", け: "げ", こ: "ご",
-        さ: "ざ", し: "じ", す: "ず", せ: "ぜ", そ: "ぞ",
-        た: "だ", ち: "ぢ", つ: "づ", て: "で", と: "ど",
-        は: "ば", ひ: "び", ふ: "ぶ", へ: "べ", ほ: "ぼ",
-        が: "か", ぎ: "き", ぐ: "く", げ: "け", ご: "こ",
-        ざ: "さ", じ: "し", ず: "す", ぜ: "せ", ぞ: "そ",
-        だ: "た", ぢ: "ち", づ: "つ", で: "て", ど: "と",
-        ば: "は", び: "ひ", ぶ: "ふ", べ: "へ", ぼ: "ほ",
-        ぱ: "ば", ぴ: "び", ぷ: "ぶ", ぺ: "べ", ぽ: "ぼ"
-    };
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const finishScreen = document.getElementById('finish-screen');
+        const playerNameInput = document.getElementById('player-name');
+        const startBtn = document.getElementById('start-btn');
+        const questionImage = document.getElementById('question-image');
+        const answerInput = document.getElementById('answer-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const resultMessage = document.getElementById('result-message');
+        const timerDisplay = document.getElementById('timer');
+        const finishResult = document.getElementById('finish-result');
 
-    const handakutenMap = {
-        は: "ぱ", ひ: "ぴ", ふ: "ぷ", へ: "ぺ", ほ: "ぽ",
-        ば: "ぱ", び: "ぴ", ぶ: "ぷ", べ: "ぺ", ぼ: "ぽ",
-        ぱ: "ば", ぴ: "び", ぷ: "ぶ", ぺ: "べ", ぽ: "ぼ"
-    };
+        let playerName;
+        let currentQuestion = 0;
+        let answers = [];
+        let solvedQuestions = new Set();
+        let timerInterval;
+        let remainingTime = QUESTION_TIME_LIMIT;
 
-    const smallMap = {
-        つ: "っ", や: "ゃ", ゆ: "ゅ", よ: "ょ",
-        あ: "ぁ", い: "ぃ", う: "ぅ", え: "ぇ", お: "ぉ",
-        っ: "つ", ゃ: "や", ゅ: "ゆ", ょ: "よ",
-        ぁ: "あ", ぃ: "い", ぅ: "う", ぇ: "え", ぉ: "お"
-    };
 
-    const handleCharacterClick = (char) => {
-        if (isAnswered) return;
-
-        if (char === "×") {
-            setAnswer(prev => prev.slice(0, -1));
-            return;
-        }
-
-        if (char === "゛" || char === "゜" || char === "小") {
-            const lastChar = answer.slice(-1);
-            if (char === "゛" && dakutenMap[lastChar]) {
-                setAnswer(prev => prev.slice(0, -1) + dakutenMap[lastChar]);
-            } else if (char === "゜" && handakutenMap[lastChar]) {
-                setAnswer(prev => prev.slice(0, -1) + handakutenMap[lastChar]);
-            } else if (char === "小" && smallMap[lastChar]) {
-                setAnswer(prev => prev.slice(0, -1) + smallMap[lastChar]);
+        startBtn.addEventListener('click', () => {
+            playerName = playerNameInput.value.trim();
+            if (!playerName) {
+                playerName = 'ななし';
             }
-            return;
-        }
-
-        if (char !== "") {
-            setAnswer(prev => prev + char);
-        }
-    };
-
-    const handleSubmit = () => {
-        if (isSubmitting) return;
+            startScreen.style.display = 'none';
+            quizScreen.style.display = 'block';
+            startQuiz();
+        });
         
-        if (isAnswered) {
-            if (currentQuestionId < questions.length) {
-                setCurrentQuestionId(currentQuestionId + 1);
-                setAnswer("");
+        function startQuiz() {
+            showQuestion(currentQuestion);
+            remainingTime = QUESTION_TIME_LIMIT;
+            timerDisplay.textContent = `残り時間: ${remainingTime}秒`;
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function showQuestion(index) {
+            const question = questions[index];
+            questionImage.src = question.image;
+            submitBtn.disabled = false;  // 判定ボタンを有効化
+            answerInput.value = '';
+            answerInput.disabled = false;
+            resultMessage.textContent = '';
+            resultMessage.className = '';
+        }
+
+        function updateTimer() {
+            remainingTime--;
+            if (remainingTime <= 0) {
+                clearInterval(timerInterval);
+                moveToNextQuestion();
+            } else {
+                timerDisplay.textContent = `残り時間: ${remainingTime}秒`;
+                if (remainingTime <= 10) {
+                    timerDisplay.classList.add('time-warning');
+                } else {
+                    timerDisplay.classList.remove('time-warning');
+                }
             }
-            return;
         }
 
-        setIsSubmitting(true);
         
-        const isCorrect = answer === currentQuestion.correct_answer;
+        function resetTimer() {
+            clearInterval(timerInterval);
+            remainingTime = QUESTION_TIME_LIMIT;
+            timerDisplay.textContent = `残り時間: ${remainingTime}秒`;
+            timerDisplay.classList.remove('time-warning');
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
         
-        if (isCorrect) {
-            const newAnsweredQuestions = {
-                ...answeredQuestions,
-                [currentQuestionId]: answer
-            };
-            setAnsweredQuestions(newAnsweredQuestions);
-            localStorage.setItem('answeredQuestions', JSON.stringify(newAnsweredQuestions));
+        function moveToNextQuestion() {
+            currentQuestion++;
+            if (currentQuestion < questions.length) {
+                showQuestion(currentQuestion);
+                resetTimer();
+                submitBtn.disabled = false;
+            } else {
+                finishQuiz();
+            }
+        }
+
+        submitBtn.addEventListener('click', () => {
+          const userAnswer = answerInput.value.trim();
+          if (questions[currentQuestion].answer.includes(userAnswer)) {
+            answers[currentQuestion] = userAnswer;
+            solvedQuestions.add(currentQuestion);
+            resultMessage.textContent = 'せいかい';
+            resultMessage.className = 'correct';
+            answerInput.disabled = true;
+            submitBtn.disabled = true;
+          } else {
+            resultMessage.textContent = 'ちがうよ';
+            resultMessage.className = 'incorrect';
+          }
+        });
             
-            if (currentQuestionId < questions.length) {
-                setCurrentQuestionId(currentQuestionId + 1);
-                setAnswer("");
-                setError("");
-            }
-        } else {
-            setError("不正解です");
+        function finishQuiz() {
+            clearInterval(timerInterval);
+            const solvedCount = solvedQuestions.size;
+            
+            quizScreen.style.display = 'none';
+            finishScreen.style.display = 'block';
+            finishResult.innerHTML = `
+                <p>名前: ${playerName}</p>
+                <p>正解数: ${solvedCount}/${questions.length}</p>
+                <p class="rank">ランク: ${getRank(solvedCount)}</p>
+            `;
         }
-        
-        setIsSubmitting(false);
-    };
 
-    // レンダリング部分は省略されています
-}
-
-ReactDOM.render(<MainComponent />, document.getElementById('root'));
-
+        function getRank(solvedCount) {
+            const percentage = (solvedCount / questions.length) * 100;
+            
+            if (percentage >= 100) return 'SS';
+            if (percentage >= 80) return 'S';
+            if (percentage >= 60) return 'A';
+            if (percentage >= 40) return 'B';
+            return 'C';
+        }
     </script>
 </body>
 </html>
+このコードの中に、別のコードの五十音表の入力フォームを挿入してほしい
