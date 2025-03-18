@@ -2,202 +2,149 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no",interactive-widget=resizes-content>
-    <title>謎解き3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ひらがな練習</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 20px;
+        /* スタイルは簡略化しています */
+        .hiragana-grid {
+            display: flex;
+            flex-direction: row-reverse;
+            gap: 3px;
+            width: calc(100% - 1px);
         }
-         #title-image {
+        .hiragana-column {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            flex: 1;
+        }
+        .hiragana-button {
             width: 100%;
-            max-width: 100%;
-            height: auto;
-            margin-bottom: 15px;
-            margin-top: 30px
+            aspect-ratio: 1;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
         }
-
-        #quiz-screen, #finish-screen {
-            display: none;
-        }
-        .correct {
-            color: green;
-        }
-        .incorrect {
-            color: red;
-        }
-        .rank {
-            font-size: 24px;
-            font-weight: bold;
-        }
-        #question-image {
-            max-width: 100%;
-            height: auto;
-            margin-bottom: 20px;
-        }
-        .time-warning {
-            color: red;
-            font-weight: bold;
-        }
-
     </style>
 </head>
 <body>
-    <div id="start-screen">
-        <h1>なないろレインボー</h1>
-        <img id="title-image" src="./0.png" alt="タイトル画像">
-        <input type="text" id="player-name" placeholder="名前を入力してください">
-        <button id="start-btn">開始</button>
-    </div>
-
-    <div id="quiz-screen">
-        <img id="question-image" src="" alt="問題画像">
-        <input type="text" id="answer-input">
-        <button id="submit-btn">判定</button>
-        <p id="result-message"></p>
-        <p id="timer"></p>
-    </div>
-
-    <div id="finish-screen">
-        <h2>終了</h2>
-        <div id="finish-result"></div>
-    </div>
+    <header>
+        <h1>ひらがな練習</h1>
+    </header>
+    <main>
+        <div id="quiz-container">
+            <img id="quiz-image" src="" alt="問題">
+        </div>
+        <div>
+            <input type="text" id="answer-input" placeholder="解答を入力">
+            <button id="submit-button">送信</button>
+            <button id="back-button">戻る</button>
+        </div>
+        <div id="error-message"></div>
+        <div id="hiragana-grid" class="hiragana-grid"></div>
+    </main>
+    <footer>
+        <p>© 2025 ひらがな練習. All rights reserved.</p>
+    </footer>
 
     <script>
-        const QUESTION_TIME_LIMIT = 40; // 各問題の制限時間（秒）
-
-        const questions = [
-            { image: './1.png', answer: ['れい', 'レイ','零','礼'] },
-            { image: './2.png', answer: ['いちみ', 'イチミ','一味'] },
-            { image: './3.png', answer: ['にばしゃ', 'ニバシャ','荷馬車'] },
-            { image: './4.png', answer: ['サングラス', 'さんぐらす'] },
-            { image: './5.png', answer: ['しるくはっと', 'シルクハット'] },
-            { image: './6.png', answer: ['ゴールキーパー', 'ごーるきーぱー'] },
-            { image: './7.png', answer: ['ろくはらたんだい', 'ロクハラタンダイ','六波羅探題'] },
+        const hiraganaGrid = [
+            ["あ", "い", "う", "え", "お"],
+            ["か", "き", "く", "け", "こ"],
+            ["さ", "し", "す", "せ", "そ"],
+            ["た", "ち", "つ", "て", "と"],
+            ["な", "に", "ぬ", "ね", "の"],
+            ["は", "ひ", "ふ", "へ", "ほ"],
+            ["ま", "み", "む", "め", "も"],
+            ["や", "", "ゆ", "", "よ"],
+            ["ら", "り", "る", "れ", "ろ"],
+            ["わ", "", "", "", "を"],
+            ["ん", "゛", "゜", "小", "×"]
         ];
 
-        const startScreen = document.getElementById('start-screen');
-        const quizScreen = document.getElementById('quiz-screen');
-        const finishScreen = document.getElementById('finish-screen');
-        const playerNameInput = document.getElementById('player-name');
-        const startBtn = document.getElementById('start-btn');
-        const questionImage = document.getElementById('question-image');
-        const answerInput = document.getElementById('answer-input');
-        const submitBtn = document.getElementById('submit-btn');
-        const resultMessage = document.getElementById('result-message');
-        const timerDisplay = document.getElementById('timer');
-        const finishResult = document.getElementById('finish-result');
+        const dakutenMap = {
+            か: "が", き: "ぎ", く: "ぐ", け: "げ", こ: "ご",
+            さ: "ざ", し: "じ", す: "ず", せ: "ぜ", そ: "ぞ",
+            た: "だ", ち: "ぢ", つ: "づ", て: "で", と: "ど",
+            は: "ば", ひ: "び", ふ: "ぶ", へ: "べ", ほ: "ぼ"
+        };
 
-        let playerName;
-        let currentQuestion = 0;
-        let answers = [];
-        let solvedQuestions = new Set();
-        let timerInterval;
-        let remainingTime = QUESTION_TIME_LIMIT;
+        const handakutenMap = {
+            は: "ぱ", ひ: "ぴ", ふ: "ぷ", へ: "ぺ", ほ: "ぽ"
+        };
 
+        const smallMap = {
+            つ: "っ", や: "ゃ", ゆ: "ゅ", よ: "ょ",
+            あ: "ぁ", い: "ぃ", う: "ぅ", え: "ぇ", お: "ぉ"
+        };
 
-        startBtn.addEventListener('click', () => {
-            playerName = playerNameInput.value.trim();
-            if (!playerName) {
-                playerName = 'ななし';
-            }
-            startScreen.style.display = 'none';
-            quizScreen.style.display = 'block';
-            startQuiz();
-        });
-        
-        function startQuiz() {
-            showQuestion(currentQuestion);
-            remainingTime = QUESTION_TIME_LIMIT;
-            timerDisplay.textContent = `残り時間: ${remainingTime}秒`;
-            timerInterval = setInterval(updateTimer, 1000);
+        let currentQuestionId = 1;
+        let isSubmitting = false;
+
+        function initializeHiraganaGrid() {
+            const gridContainer = document.getElementById('hiragana-grid');
+            hiraganaGrid.forEach(column => {
+                const columnDiv = document.createElement('div');
+                columnDiv.className = 'hiragana-column';
+                column.forEach(char => {
+                    const button = document.createElement('button');
+                    button.className = 'hiragana-button';
+                    button.textContent = char;
+                    button.onclick = () => handleCharacterClick(char);
+                    columnDiv.appendChild(button);
+                });
+                gridContainer.appendChild(columnDiv);
+            });
         }
 
-        function showQuestion(index) {
-            const question = questions[index];
-            questionImage.src = question.image;
-            submitBtn.disabled = false;  // 判定ボタンを有効化
-            answerInput.value = '';
-            answerInput.disabled = false;
-            resultMessage.textContent = '';
-            resultMessage.className = '';
-        }
-
-        function updateTimer() {
-            remainingTime--;
-            if (remainingTime <= 0) {
-                clearInterval(timerInterval);
-                moveToNextQuestion();
-            } else {
-                timerDisplay.textContent = `残り時間: ${remainingTime}秒`;
-                if (remainingTime <= 10) {
-                    timerDisplay.classList.add('time-warning');
-                } else {
-                    timerDisplay.classList.remove('time-warning');
+        function handleCharacterClick(char) {
+            const answerInput = document.getElementById('answer-input');
+            if (char === "×") {
+                answerInput.value = answerInput.value.slice(0, -1);
+            } else if (char === "゛" || char === "゜" || char === "小") {
+                const lastChar = answerInput.value.slice(-1);
+                if (char === "゛" && dakutenMap[lastChar]) {
+                    answerInput.value = answerInput.value.slice(0, -1) + dakutenMap[lastChar];
+                } else if (char === "゜" && handakutenMap[lastChar]) {
+                    answerInput.value = answerInput.value.slice(0, -1) + handakutenMap[lastChar];
+                } else if (char === "小" && smallMap[lastChar]) {
+                    answerInput.value = answerInput.value.slice(0, -1) + smallMap[lastChar];
                 }
+            } else if (char !== "") {
+                answerInput.value += char;
             }
         }
 
-        
-        function resetTimer() {
-            clearInterval(timerInterval);
-            remainingTime = QUESTION_TIME_LIMIT;
-            timerDisplay.textContent = `残り時間: ${remainingTime}秒`;
-            timerDisplay.classList.remove('time-warning');
-            timerInterval = setInterval(updateTimer, 1000);
+        function handleSubmit() {
+            if (isSubmitting) return;
+            isSubmitting = true;
+            const answerInput = document.getElementById('answer-input');
+            const currentAnswer = answerInput.value;
+            answerInput.value = "";
+            // ここで解答を送信する処理を実装します
+            console.log("解答を送信:", currentAnswer);
+            isSubmitting = false;
         }
 
-        
-        function moveToNextQuestion() {
-            currentQuestion++;
-            if (currentQuestion < questions.length) {
-                showQuestion(currentQuestion);
-                resetTimer();
-                submitBtn.disabled = false;
-            } else {
-                finishQuiz();
+        function handleBack() {
+            if (currentQuestionId > 1 && !isSubmitting) {
+                currentQuestionId--;
+                updateQuizImage();
             }
         }
 
-        submitBtn.addEventListener('click', () => {
-          const userAnswer = answerInput.value.trim();
-          if (questions[currentQuestion].answer.includes(userAnswer)) {
-            answers[currentQuestion] = userAnswer;
-            solvedQuestions.add(currentQuestion);
-            resultMessage.textContent = 'せいかい';
-            resultMessage.className = 'correct';
-            answerInput.disabled = true;
-            submitBtn.disabled = true;
-          } else {
-            resultMessage.textContent = 'ちがうよ';
-            resultMessage.className = 'incorrect';
-          }
+        function updateQuizImage() {
+            const quizImage = document.getElementById('quiz-image');
+            quizImage.src = `quiz${currentQuestionId}.png`;
+            quizImage.alt = `問題 ${currentQuestionId}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeHiraganaGrid();
+            updateQuizImage();
+            document.getElementById('submit-button').addEventListener('click', handleSubmit);
+            document.getElementById('back-button').addEventListener('click', handleBack);
         });
-            
-        function finishQuiz() {
-            clearInterval(timerInterval);
-            const solvedCount = solvedQuestions.size;
-            
-            quizScreen.style.display = 'none';
-            finishScreen.style.display = 'block';
-            finishResult.innerHTML = `
-                <p>名前: ${playerName}</p>
-                <p>正解数: ${solvedCount}/${questions.length}</p>
-                <p class="rank">ランク: ${getRank(solvedCount)}</p>
-            `;
-        }
-
-        function getRank(solvedCount) {
-            const percentage = (solvedCount / questions.length) * 100;
-            
-            if (percentage >= 100) return 'SS';
-            if (percentage >= 80) return 'S';
-            if (percentage >= 60) return 'A';
-            if (percentage >= 40) return 'B';
-            return 'C';
-        }
     </script>
 </body>
 </html>
