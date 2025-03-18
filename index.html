@@ -1,150 +1,254 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ひらがな練習</title>
-    <style>
-        /* スタイルは簡略化しています */
-        .hiragana-grid {
-            display: flex;
-            flex-direction: row-reverse;
-            gap: 3px;
-            width: calc(100% - 1px);
-        }
-        .hiragana-column {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            flex: 1;
-        }
-        .hiragana-button {
-            width: 100%;
-            aspect-ratio: 1;
-            font-size: 14px;
-            border-radius: 4px;
-            border: 1px solid #e2e8f0;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>ひらがな練習</h1>
-    </header>
-    <main>
-        <div id="quiz-container">
-            <img id="quiz-image" src="" alt="問題">
+import React, { useState, useEffect } from 'react';
+
+function MainComponent() {
+  const [isDark, setIsDark] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [currentQuestionId, setCurrentQuestionId] = useState(1);
+  const [question, setQuestion] = useState(null);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const hiraganaGrid = [
+    ["あ", "い", "う", "え", "お"],
+    ["か", "き", "く", "け", "こ"],
+    ["さ", "し", "す", "せ", "そ"],
+    ["た", "ち", "つ", "て", "と"],
+    ["な", "に", "ぬ", "ね", "の"],
+    ["は", "ひ", "ふ", "へ", "ほ"],
+    ["ま", "み", "む", "め", "も"],
+    ["や", "", "ゆ", "", "よ"],
+    ["ら", "り", "る", "れ", "ろ"],
+    ["わ", "", "", "", "を"],
+    ["ん", "゛", "゜", "小", "×"],
+  ];
+
+  const dakutenMap = {
+    か: "が", き: "ぎ", く: "ぐ", け: "げ", こ: "ご",
+    さ: "ざ", し: "じ", す: "ず", せ: "ぜ", そ: "ぞ",
+    た: "だ", ち: "ぢ", つ: "づ", て: "で", と: "ど",
+    は: "ば", ひ: "び", ふ: "ぶ", へ: "べ", ほ: "ぼ",
+    が: "か", ぎ: "き", ぐ: "く", げ: "け", ご: "こ",
+    ざ: "さ", じ: "し", ず: "す", ぜ: "せ", ぞ: "そ",
+    だ: "た", ぢ: "ち", づ: "つ", で: "て", ど: "と",
+    ば: "は", び: "ひ", ぶ: "ふ", べ: "へ", ぼ: "ほ",
+    ぱ: "ば", ぴ: "び", ぷ: "ぶ", ぺ: "べ", ぽ: "ぼ",
+  };
+
+  const handakutenMap = {
+    は: "ぱ", ひ: "ぴ", ふ: "ぷ", へ: "ぺ", ほ: "ぽ",
+    ば: "ぱ", び: "ぴ", ぶ: "ぷ", べ: "ぺ", ぼ: "ぽ",
+    ぱ: "ば", ぴ: "び", ぷ: "ぶ", ぺ: "べ", ぽ: "ぼ",
+  };
+
+  const smallMap = {
+    つ: "っ", や: "ゃ", ゆ: "ゅ", よ: "ょ",
+    あ: "ぁ", い: "ぃ", う: "ぅ", え: "ぇ", お: "ぉ",
+    っ: "つ", ゃ: "や", ゅ: "ゆ", ょ: "よ",
+    ぁ: "あ", ぃ: "い", ぅ: "う", ぇ: "え", ぉ: "お",
+  };
+
+  useEffect(() => {
+    const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    setIsDark(darkModeQuery.matches);
+    const handler = (e) => setIsDark(e.matches);
+    darkModeQuery.addEventListener("change", handler);
+    return () => darkModeQuery.removeEventListener("change", handler);
+  }, []);
+
+  const getQuizImagePath = (id) => {
+    return `quiz${id}.png`;
+  };
+
+  const handleCharacterClick = (char) => {
+    if (question?.previous_correct_answer) return;
+    if (char === "×") {
+      setAnswer((prev) => prev.slice(0, -1));
+      return;
+    }
+    if (char === "゛" || char === "゜" || char === "小") {
+      const lastChar = answer.slice(-1);
+      if (char === "゛" && dakutenMap[lastChar]) {
+        setAnswer((prev) => prev.slice(0, -1) + dakutenMap[lastChar]);
+      } else if (char === "゜" && handakutenMap[lastChar]) {
+        setAnswer((prev) => prev.slice(0, -1) + handakutenMap[lastChar]);
+      } else if (char === "小" && smallMap[lastChar]) {
+        setAnswer((prev) => prev.slice(0, -1) + smallMap[lastChar]);
+      }
+      return;
+    }
+    if (char !== "") {
+      setAnswer((prev) => prev + char);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    if (question?.previous_correct_answer) {
+      setCurrentQuestionId(currentQuestionId + 1);
+      return;
+    }
+    setIsSubmitting(true);
+    const currentAnswer = answer;
+    setAnswer("");
+    try {
+      const response = await fetch("/api/question-handler", {
+        method: "POST",
+        body: JSON.stringify({
+          method: "POST",
+          answer: currentAnswer,
+          questionId: currentQuestionId,
+          userId: 123,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`解答の送信に失敗しました [${response.status}]`);
+      }
+      const data = await response.json();
+      if (data.isCorrect) {
+        setCurrentQuestionId(data.nextQuestionId);
+        setError("");
+      } else {
+        setAnswer(currentAnswer);
+        setError("不正解です");
+      }
+    } catch (err) {
+      console.error(err);
+      setAnswer(currentAnswer);
+      setError("エラーが発生しました");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentQuestionId > 1 && !isSubmitting) {
+      setCurrentQuestionId((prev) => prev - 1);
+    }
+  };
+
+  return (
+    <div className={`min-h-screen flex flex-col ${isDark ? "dark bg-gray-900" : "bg-white"}`}>
+      <header className="w-full py-4 px-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <h1 className="text-xl font-inter font-bold text-gray-900 dark:text-white">
+            ひらがな練習
+          </h1>
         </div>
-        <div>
-            <input type="text" id="answer-input" placeholder="解答を入力">
-            <button id="submit-button">送信</button>
-            <button id="back-button">戻る</button>
+      </header>
+      <main className="flex-grow w-full max-w-7xl mx-auto px-6 py-12 flex justify-center">
+        <div className="w-full max-w-[390px]">
+          <div className="w-full mb-6 flex items-center justify-center">
+            <img
+              src={getQuizImagePath(currentQuestionId)}
+              alt={`問題 ${currentQuestionId}`}
+              className="w-full object-contain"
+              loading="eager"
+            />
+          </div>
+          <div className="mb-2 flex gap-2">
+            <input
+              type="text"
+              value={answer}
+              onChange={(e) =>
+                !question?.previous_correct_answer &&
+                !isSubmitting &&
+                setAnswer(e.target.value)
+              }
+              className={`w-1/2 p-2 border rounded-lg font-inter ${
+                question?.previous_correct_answer || isSubmitting
+                  ? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-not-allowed"
+                  : "border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
+              }`}
+              placeholder="解答を入力"
+              readOnly={!!question?.previous_correct_answer || isSubmitting}
+            />
+            <div className="flex gap-2 w-1/2">
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className={`flex-1 px-2 py-2 rounded-lg font-inter transition-colors ${
+                  isSubmitting
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600"
+                    : question?.previous_correct_answer
+                      ? "bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:text-green-400 dark:border-green-800"
+                      : "bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+                }`}
+              >
+                {question?.previous_correct_answer
+                  ? "次へ"
+                  : isSubmitting
+                    ? "送信中..."
+                    : "送信"}
+              </button>
+              <button
+                onClick={handleBack}
+                disabled={isSubmitting || currentQuestionId <= 1}
+                className={`flex-1 px-2 py-2 rounded-lg font-inter transition-colors ${
+                  isSubmitting || currentQuestionId <= 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600"
+                    : "bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-400 dark:border-gray-700"
+                }`}
+              >
+                戻る
+              </button>
+            </div>
+          </div>
+          <div className="h-4 mt-1 mb-1 flex items-center justify-center">
+            <div
+              className={`text-sm w-full text-center transition-opacity text-red-600 dark:text-red-400 ${
+                error ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              {error || "　"}
+            </div>
+          </div>
+          <div className="w-full flex justify-center">
+            <div className="w-full flex justify-end">
+              <div
+                className="flex flex-row-reverse gap-[3px]"
+                style={{ width: "calc(100% - 1px)" }}
+              >
+                {hiraganaGrid.map((row, rowIndex) => (
+                  <div
+                    key={rowIndex}
+                    className="flex flex-col gap-[3px] flex-1"
+                  >
+                    {row.map((char) => (
+                      <button
+                        key={char}
+                        onClick={() => handleCharacterClick(char)}
+                        disabled={!!question?.previous_correct_answer}
+                        className={`w-full aspect-square text-sm rounded-md border font-inter transition-colors ${
+                          char === ""
+                            ? "invisible"
+                            : question?.previous_correct_answer
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600 border-gray-200 dark:border-gray-700"
+                              : char === "×"
+                                ? "bg-red-50 hover:bg-red-100 text-red-600 border-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 dark:border-red-800"
+                                : ["゛", "゜", "小"].includes(char)
+                                  ? "bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+                                  : "border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                        }`}
+                      >
+                        {char}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-        <div id="error-message"></div>
-        <div id="hiragana-grid" class="hiragana-grid"></div>
-    </main>
-    <footer>
-        <p>© 2025 ひらがな練習. All rights reserved.</p>
-    </footer>
+      </main>
+      <footer className="w-full py-6 px-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto text-center">
+          <p className="text-sm text-gray-700 dark:text-gray-300 font-inter">
+            © 2025 ひらがな練習. All rights reserved.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
 
-    <script>
-        const hiraganaGrid = [
-            ["あ", "い", "う", "え", "お"],
-            ["か", "き", "く", "け", "こ"],
-            ["さ", "し", "す", "せ", "そ"],
-            ["た", "ち", "つ", "て", "と"],
-            ["な", "に", "ぬ", "ね", "の"],
-            ["は", "ひ", "ふ", "へ", "ほ"],
-            ["ま", "み", "む", "め", "も"],
-            ["や", "", "ゆ", "", "よ"],
-            ["ら", "り", "る", "れ", "ろ"],
-            ["わ", "", "", "", "を"],
-            ["ん", "゛", "゜", "小", "×"]
-        ];
-
-        const dakutenMap = {
-            か: "が", き: "ぎ", く: "ぐ", け: "げ", こ: "ご",
-            さ: "ざ", し: "じ", す: "ず", せ: "ぜ", そ: "ぞ",
-            た: "だ", ち: "ぢ", つ: "づ", て: "で", と: "ど",
-            は: "ば", ひ: "び", ふ: "ぶ", へ: "べ", ほ: "ぼ"
-        };
-
-        const handakutenMap = {
-            は: "ぱ", ひ: "ぴ", ふ: "ぷ", へ: "ぺ", ほ: "ぽ"
-        };
-
-        const smallMap = {
-            つ: "っ", や: "ゃ", ゆ: "ゅ", よ: "ょ",
-            あ: "ぁ", い: "ぃ", う: "ぅ", え: "ぇ", お: "ぉ"
-        };
-
-        let currentQuestionId = 1;
-        let isSubmitting = false;
-
-        function initializeHiraganaGrid() {
-            const gridContainer = document.getElementById('hiragana-grid');
-            hiraganaGrid.forEach(column => {
-                const columnDiv = document.createElement('div');
-                columnDiv.className = 'hiragana-column';
-                column.forEach(char => {
-                    const button = document.createElement('button');
-                    button.className = 'hiragana-button';
-                    button.textContent = char;
-                    button.onclick = () => handleCharacterClick(char);
-                    columnDiv.appendChild(button);
-                });
-                gridContainer.appendChild(columnDiv);
-            });
-        }
-
-        function handleCharacterClick(char) {
-            const answerInput = document.getElementById('answer-input');
-            if (char === "×") {
-                answerInput.value = answerInput.value.slice(0, -1);
-            } else if (char === "゛" || char === "゜" || char === "小") {
-                const lastChar = answerInput.value.slice(-1);
-                if (char === "゛" && dakutenMap[lastChar]) {
-                    answerInput.value = answerInput.value.slice(0, -1) + dakutenMap[lastChar];
-                } else if (char === "゜" && handakutenMap[lastChar]) {
-                    answerInput.value = answerInput.value.slice(0, -1) + handakutenMap[lastChar];
-                } else if (char === "小" && smallMap[lastChar]) {
-                    answerInput.value = answerInput.value.slice(0, -1) + smallMap[lastChar];
-                }
-            } else if (char !== "") {
-                answerInput.value += char;
-            }
-        }
-
-        function handleSubmit() {
-            if (isSubmitting) return;
-            isSubmitting = true;
-            const answerInput = document.getElementById('answer-input');
-            const currentAnswer = answerInput.value;
-            answerInput.value = "";
-            // ここで解答を送信する処理を実装します
-            console.log("解答を送信:", currentAnswer);
-            isSubmitting = false;
-        }
-
-        function handleBack() {
-            if (currentQuestionId > 1 && !isSubmitting) {
-                currentQuestionId--;
-                updateQuizImage();
-            }
-        }
-
-        function updateQuizImage() {
-            const quizImage = document.getElementById('quiz-image');
-            quizImage.src = `quiz${currentQuestionId}.png`;
-            quizImage.alt = `問題 ${currentQuestionId}`;
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeHiraganaGrid();
-            updateQuizImage();
-            document.getElementById('submit-button').addEventListener('click', handleSubmit);
-            document.getElementById('back-button').addEventListener('click', handleBack);
-        });
-    </script>
-</body>
-</html>
+export default MainComponent;
